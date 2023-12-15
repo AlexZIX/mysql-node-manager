@@ -1,0 +1,4 @@
+# This file from mysql-node-manager project
+# Details: https://github.com/AlexZIX/mysql-node-manager
+
+mysql-node-manager ALL=(ALL) NOPASSWD: /usr/sbin/iptables

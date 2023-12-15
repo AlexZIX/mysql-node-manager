@@ -1,0 +1,7 @@
+# /etc/cron.d/mysql-node-manager: crontab entries for the mysql-node-manager
+
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+* * * * * mysql-node-manager /opt/mysql-node-manager/mysql-node-manager.sh
+* * * * * mysql-node-manager sleep 30 && /opt/mysql-node-manager/mysql-node-manager.sh
