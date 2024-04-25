@@ -21,13 +21,25 @@ then
 	# Install iptables and cron
 	apt --yes install iptables cron
 	
+	echo "Select type of your multi-master setup"
+	echo "1. MySQL Group Replication"
+	echo "2. Galera Cluster"
+	read -p "Your choice: " type
+	
+	if [ "$type" -eq 1 ]; then
+		sed -i 's/SETUP_TYPE=[1-2]/SETUP_TYPE=1/g' mysql-node-manager.sh;
+	else
+		sed -i 's/SETUP_TYPE=[1-2]/SETUP_TYPE=2/g' mysql-node-manager.sh;
+	fi
+	
 	# Set user for accesing to mysql
-	rm /home/mysql-node-manager/.my.cnf
+	rm -f /home/mysql-node-manager/.my.cnf
 	read -p "Enter username for the mysql-node-manager to access to MySQL: " username
 	read -p "Enter password for the mysql-node-manager to access to MySQL: " password
 	echo "[client]" >> /home/mysql-node-manager/.my.cnf
 	echo "user = $username" >> /home/mysql-node-manager/.my.cnf
 	echo "password = $password" >> /home/mysql-node-manager/.my.cnf
+	echo "host = 127.0.0.1" >> /home/mysql-node-manager/.my.cnf
 	chown -R mysql-node-manager:mysql-node-manager /home/mysql-node-manager/.my.cnf
 
 	# Create working directory and copy script into it
