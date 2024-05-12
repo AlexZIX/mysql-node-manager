@@ -2,7 +2,7 @@
 
 echo This script will install the mysql-node-manager software on this server
 
-install="no"
+install=3
 
 # Create user and grant permissions to manage iptables without promt password
 if [ ! $(getent group mysql-node-manager) ] 
@@ -11,12 +11,22 @@ then
 	useradd -g mysql-node-manager -s /bin/bash -m -G sudo mysql-node-manager
 	cp mysql-node-manager.sudoers /etc/sudoers.d/mysql-node-manager
 	
-	install="yes"
+	install=2
 else
-	read -p "It seems that mysql-node-manager already installed on this server. Do you want to reinstall it (yes/no)? " install
+	echo "It seems that mysql-node-manager already installed on this server. Please, select action which you want to run."
+	echo "1. Update"
+	echo "2. Reinstall"
+	echo "3. Exit"
+	read -p "Your choice: " install
 fi
 
-if [ $install = "yes" ] 
+if [ $install -eq 1 ] 
+then
+	# Pull changes from server
+	git pull
+fi
+
+if [ $install -eq 2 ] 
 then
 	# Install iptables and cron
 	apt --yes install iptables cron
@@ -41,7 +51,11 @@ then
 	echo "password = $password" >> /home/mysql-node-manager/.my.cnf
 	echo "host = 127.0.0.1" >> /home/mysql-node-manager/.my.cnf
 	chown -R mysql-node-manager:mysql-node-manager /home/mysql-node-manager/.my.cnf
+fi
 
+# In case of install/reinstall/update
+if [ $install -eq 1 ] || [ $install -eq 2 ]
+then
 	# Create working directory and copy script into it
 	mkdir -p /opt/mysql-node-manager
 	cp mysql-node-manager.sh /opt/mysql-node-manager
@@ -58,4 +72,4 @@ then
 	chown root:root /etc/cron.d/mysql-node-manager
 	chmod 0644 /etc/cron.d/mysql-node-manager
 	systemctl restart cron
-fi
+fi 
