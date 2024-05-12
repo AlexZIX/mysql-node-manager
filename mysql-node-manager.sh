@@ -10,10 +10,15 @@ then
 	sudo iptables -I INPUT 1 -p tcp -s 127.0.0.1 --dport 3306 -j ACCEPT
 fi
 
-MYSQL_ERROR=$(mysql -Bse "SELECT 1;" 2>&1) 
+MYSQL_ERROR=$(mysql --connect-timeout 3 -Bse "SELECT 1;" 2>&1) 
 if [[ "$MYSQL_ERROR" =~ "ERROR 1045" ]]
 then
 	echo "[$TIMESTAMP] Access to MySQL server denied. Check credentials in /home/mysql-node-manager/my.cnf" >> /var/log/mysql-node-manager/mysql-node-manager.log
+	exit 1
+fi
+if [[ "$MYSQL_ERROR" =~ "ERROR 2013" ]]
+then
+	echo "[$TIMESTAMP] Lost connection to server at 'handshake: reading initial communication packet', system error: 110" >> /var/log/mysql-node-manager/mysql-node-manager.log
 	exit 1
 fi
 
