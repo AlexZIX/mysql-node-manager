@@ -30,17 +30,13 @@ if [ $install -eq 2 ]
 then
 	# Install iptables and cron
 	apt --yes install iptables cron
-	
+
+ 	# Write cluster type into script
 	echo "Select type of your multi-master setup"
 	echo "1. MySQL Group Replication"
 	echo "2. Galera Cluster"
 	read -p "Your choice: " type
-	
-	if [ "$type" -eq 1 ]; then
-		sed -i 's/SETUP_TYPE=[1-2]/SETUP_TYPE=1/g' mysql-node-manager.sh;
-	else
-		sed -i 's/SETUP_TYPE=[1-2]/SETUP_TYPE=2/g' mysql-node-manager.sh;
-	fi
+	sed -i "s/SETUP_TYPE=[1-2]/SETUP_TYPE=$type/g" mysql-node-manager.sh
 	
 	# Set user for accesing to mysql
 	rm -f /home/mysql-node-manager/.my.cnf
