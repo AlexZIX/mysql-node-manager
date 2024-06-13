@@ -37,4 +37,7 @@ You need to add node ip and port 3307 into your load balancer. In case of networ
 
 ## Where it will work.
 
-Written and tested in Ubuntu Server 22.04.
+Written and tested in Ubuntu Server 22.04 with following clusters:
+- MySQL 8.0.36 with Group Replication plugin
+- MariaDB 10.12 with Galera Cluster plugin
+- Percona XtraDB 8.0.36 with Galera Cluster plugin
