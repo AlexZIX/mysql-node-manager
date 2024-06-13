@@ -2,23 +2,10 @@
 
 TIMESTAMP=`date "+%Y-%m-%d %H:%M:%S"`
 
-# Check if rule exists which allows this script to access to server
-sudo iptables -C INPUT -p tcp -s 127.0.0.1 --dport 3306 -j ACCEPT
-RULE_NOT_EXISTS=$?
-if [ $RULE_NOT_EXISTS -eq 1 ]
-then
-	sudo iptables -I INPUT 1 -p tcp -s 127.0.0.1 --dport 3306 -j ACCEPT
-fi
-
-MYSQL_ERROR=$(mysql --connect-timeout 3 -Bse "SELECT 1;" 2>&1) 
+MYSQL_ERROR=$(mysql -Bse "SELECT 1;" 2>&1) 
 if [[ "$MYSQL_ERROR" =~ "ERROR 1045" ]]
 then
 	echo "[$TIMESTAMP] Access to MySQL server denied. Check credentials in /home/mysql-node-manager/my.cnf" >> /var/log/mysql-node-manager/mysql-node-manager.log
-	exit 1
-fi
-if [[ "$MYSQL_ERROR" =~ "ERROR 2013" ]]
-then
-	echo "[$TIMESTAMP] Lost connection to server at 'handshake: reading initial communication packet', system error: 110" >> /var/log/mysql-node-manager/mysql-node-manager.log
 	exit 1
 fi
 
@@ -26,34 +13,42 @@ MYSQL_AVAILABLE=$((`mysql -Bse "SELECT 1;"`))
 
 SETUP_TYPE=2
 
+SUPER_READ_ONLY=1
+
 # SETUP_TYPE = 1 means its MySQL Group Replication and we read SUPER_READ_ONLY
-# SETUP_TYPE = 2 means its Galera Cluster and we read WSREP_READY
+# SETUP_TYPE = 2 means its Galera Cluster and we read wsrep_ready, wsrep_cluster_size and wsrep_cluster_status
 if [ $SETUP_TYPE -eq 1 ]
 then
 	SUPER_READ_ONLY=$((`mysql -Bse "SELECT @@super_read_only;"`))
 else
-	SUPER_READ_ONLY=$((`mysql -Bse "SELECT VARIABLE_VALUE INTO @wsrep_ready FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='wsrep_ready'; SELECT CASE WHEN @wsrep_ready='OFF' THEN 1 ELSE 0 END AS value"`))
+	WSREP_READY=$(mysql -Bse "SHOW STATUS LIKE 'wsrep_ready';" | awk '{print $2}')
+	WSREP_PRIMARY=$(mysql -Bse "SHOW STATUS LIKE 'wsrep_cluster_status';" | awk '{print $2}')
+
+	if [ "$WSREP_READY" = "ON" ] && [ "$WSREP_PRIMARY" = "Primary" ]
+	then
+		SUPER_READ_ONLY=0
+	fi
 fi
 
 # Check if rule already exists
-sudo iptables -C INPUT -p tcp --dport 3306 -j DROP
+sudo iptables -t nat -C PREROUTING -p tcp -m tcp --dport 3307 -j REDIRECT --to-ports 3306
 RULE_NOT_EXISTS=$?
 
 if [ $SUPER_READ_ONLY -eq 1 ] || [ $MYSQL_AVAILABLE -eq 0 ]
 then	
-	if [ $RULE_NOT_EXISTS -eq 1 ]
-	then
-		# Add if not
-		sudo iptables -A INPUT -p tcp --dport 3306 -j DROP
-		
-		echo "[$TIMESTAMP] This node lost cluster connectivity or goes down. Add lock rule to iptables." >> /var/log/mysql-node-manager/mysql-node-manager.log
-	fi
-else
 	if [ $RULE_NOT_EXISTS -eq 0 ]
 	then
 		# Add if not
-		sudo iptables -D INPUT -p tcp --dport 3306 -j DROP
+		sudo iptables -t nat -D PREROUTING -p tcp -m tcp --dport 3307 -j REDIRECT --to-ports 3306
 		
-		echo "[$TIMESTAMP] This node recover cluster connectivity. Delete lock rule from iptables." >> /var/log/mysql-node-manager/mysql-node-manager.log
+		echo "[$TIMESTAMP] This node lost cluster connectivity or goes down. Remove redirect rule from iptables." >> /var/log/mysql-node-manager/mysql-node-manager.log
+	fi
+else
+	if [ $RULE_NOT_EXISTS -eq 1 ]
+	then
+		# Add if not
+		sudo iptables -t nat -A PREROUTING -p tcp -m tcp --dport 3307 -j REDIRECT --to-ports 3306
+		
+		echo "[$TIMESTAMP] This node recover cluster connectivity. Add redirect rule to iptables." >> /var/log/mysql-node-manager/mysql-node-manager.log
 	fi
 fi
